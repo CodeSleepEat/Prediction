@@ -1,0 +1,64 @@
+#Machine Learning Project from Coursera Specialization
+
+
+##Assignment
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+##Data Loading and Cleaning
+The data was downloaded from the given URLs.
+```{r}
+library(caret)
+library(rattle)
+library(randomForest)
+training <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"))
+testing <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"))
+```
+The columns that have missing values in either the training or the testing sets are found through the following code. Only the columns that have no NAs are kept in the new dataset. Additionally all columns that are not valuable for the prediction are removed
+```{r}
+NAdatatrain <- sapply(1:ncol(training), function(x) sum(is.na(training[,x])))
+NAdatatest <- sapply(1:ncol(testing), function(x) sum(is.na(testing[,x])))
+keeptrain <- names(training)[NAdatatrain==0]
+keeptest <- names(testing)[NAdatatest==0]
+keep <- names(training)[names(training) %in% keeptrain & names(training) %in% keeptest]
+training2 <- training[, c(keep, "classe")]
+training2 <- training2[, -c(1:7)]
+testing2 <- testing[, c(keep, "problem_id")]
+testing2 <- testing2[, -c(1:7)]
+```
+As the testing dataset has no column "classe" so it can not be used to evaluate the model. Therefore the training dataset is split into train an test dataset. The train set will be 70% of the training dataset.
+```{r}
+set.seed(123)
+trainindex <- createDataPartition(training2$classe, p=0.7, list=F)
+train <- training2[trainindex,]
+test <- training2[-trainindex,]
+```
+
+##Decision Tree
+As decision trees are great for classification problems and easy to interpret and understand we are starting the Modelling process with a decision tree.
+We use the caret package to train the model.
+```{r}
+set.seed(234)
+model1 <- train(classe ~ ., data=train, method="rpart")
+fancyRpartPlot(model1$finalModel)
+```
+     
+In the following the the test dataset will be predicted with the decision tree and evaluated using the confusionMatrix-function.
+```{r}
+pred1 <- predict(model1, test)
+CM1 <- confusionMatrix(pred1, test$classe)
+CM1
+```
+The accuracy of the model is `r CM1$overall[1]`, which is quite low.
+
+##Random Forest
+Because the decision tree did not work well for the test dataset a random forest model will be trained an evaluated.
+```{r}
+model2 <- randomForest(classe ~ ., data=train, method="rf")
+pred2 <- predict(model2, test)
+CM2 <- confusionMatrix(pred2, test$classe)
+CM2
+```
+The ranodm forest model has a accuracy with `r CM2$overall[1]`. This is a fairly high accuracy.
+
+##Conclusion
+The random forest model was used to evaluate the testing dataset and answer the questions to the quiz. As the accuracy is really good the predictions for the testing dataset were all correct.
